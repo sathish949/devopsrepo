@@ -1,0 +1,153 @@
+---
+title: "Individual Assignment 2"
+author: "Wenwen Liu"
+date: "May 1, 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+G20.df=read.csv('Infiniti_G20.csv')
+#View(G20.df)
+```
+```{r}
+#1.
+## Step0: Check the correlation matrix and plot
+round(cor(G20.df[2:10]), digits = 3)
+library(corrplot)
+corrplot(cor(G20.df[2:10]), order = "hclust")
+```
+From the correlation matrix, we could find that there are correlation among the features so we could do factors analysis. 
+```{r}
+# Step1: Principal Components Analysis (PCA)
+G20.pc = prcomp(G20.df[2:10], scale = T)
+summary(G20.pc)
+# Scree plot
+plot(G20.pc, type = 'l')
+```
+From the scree plot, we found that the scree begins from the fourth principle component, so we choose 3 principle components. 
+```{r}
+# Step2: Factor Analysis without any rotation
+library(psych)
+G20.fa1 = principal(G20.df[2:10], nfactors = 3,
+                     rotate = "none")
+G20.fa1$loadings
+G20.fa1$communality
+```
+ANSWER:
+a. We select 3 factors to summarize the survey data.  
+b. We are not able to interpret the factors based on the unrotated factor loadings.
+Firstly, it is hard to find a coherent link among the variables that are correlated with Factor1, because it is almost highly related with every characteristics. 
+Secondly, Factor1 and Factor2 both have moderate correlations with characteristics like "Sporty","Unreliable" and "Roomy", which is difficult to interpret.
+```{r}
+#2.Use Varimax Rotation to find the Rotated Factors
+# Step2 (contd. - optional): Factor Analysis with Varimax rotation
+G20.df2 = principal(G20.df[2:10], nfactors = 3,
+                     rotate = "varimax")
+G20.df2$loadings
+G20.df2$communality
+
+```
+
+Factor1 is highly correlated with characteristics like "Attractive","Quiet","Unreliable","Prestige".  
+I will name it "Allure".
+Factor2 is highly correlated with "Sporty","Uncomfortable", "roomy".
+I will name it "Practical"
+Factor3 is highly correlated with "Economical", "Poorvalue ".
+I will name it "Economical"
+```{r}
+#3. Use the factor scores to generate perceptual maps.
+# Factor Scores and weights
+G20.df2$weights
+
+summary(G20.df2$scores) 
+```
+```{r}
+# Allure VS Practical 
+plot(RC2 ~ RC1, data = G20.df2$scores, pch = 22, lwd = 0.5,
+     bg = "darkviolet",xlab = "Allure", ylab = "Practical",xlim = c(-2,2), ylim = c(-2,2))
+text(RC2~RC1, labels=G20.df$Car, data=G20.df2$scores, font=2, pos=2)
+abline(h=0, v=0, lty = 2)
+
+# change the display 
+```
+
+The perceptual map show that InfiniteG20 is high in "Allure" but also relatively high in "Practical" factor.
+The closest competitor in these two characteristics is  BMW 318i
+Audi 90 is the leader in "Practical" characteristic while Toyota Supra is the leader in "Allure"" factor. 
+
+
+
+```{r}
+# Allure VS Economical
+plot(RC3 ~ RC1, data = G20.df2$scores, pch = 22, lwd = 0.5,
+     bg = "darkviolet",xlab = "Allure", ylab = "Economical",xlim = c(-2,2), ylim = c(-2,2))
+text(RC3~RC1, labels=G20.df$Car, data=G20.df2$scores, font=2, pos=2)
+abline(h=0, v=0, lty = 2)
+```
+The perceptual map show that G20 is relatively low on "Affordable" but relatively high in " Allure." 
+Its competitor in these two characteristics is also BMW318i.
+Honda Prelude is the leader of "Affordable"factor, Toyota Supra is the leader of "Allure" factor. 
+
+```{r}
+# Economical VS Practical 
+plot(RC3 ~ RC2, data = G20.df2$scores, pch = 22, lwd = 0.5,
+     bg = "darkviolet",xlab = "Practical", ylab = "Economical",xlim = c(-2,2), ylim = c(-2,2))
+text(RC3~RC2, labels=G20.df$Car, data=G20.df2$scores, font=2, pos=2)
+abline(h=0, v=0, lty = 2)
+```
+
+The perceptual map show that G20 is relatively high in "practical" factor but low in "Affordable" factor. 
+The competitor in these two characteritis is also BMW318i. 
+Honda Prelude is the leader of "Affordable" factor, Audi90 is the leader of  "Practical" factor.
+
+In general, "BMW318i"" is the main competitor for "G20"." Audi90" is the leader in "Practical" factor, "Honda Prelude" is the leader in "Affordable" factor, "Toyota Supra" is the leader in "Allure" factor. 
+
+```{r}
+# 4
+# Yes, the perceptions of the responsents match with the claim. 
+#From the perceptual maps, we could find BMW318i and G20 are nearly same in "Allure" characteristic, but in "Affordable" and "Practical" characteristics, G20' scores are a little higher than BMW.
+#So, we could think G20 is a car that was almost like BMW318i but with lowered price.
+```
+
+```{r}
+# 5. Find the correlations between each consumer sub-segment's overall ratings (Columns S1, S2 and S3) with the factor scores
+G20.df[14:16] = G20.df2$scores
+names(G20.df)[14:16] = c("Allure", "Practical","Economical")
+
+G20.df
+```
+```{r}
+
+#cor(G20.df$S1,G20.df$Allure)
+cor(G20.df[11:16])
+corrplot(cor(G20.df[11:16]), order = "hclust")
+```
+Answer: 
+a. Segment 2 is highly related with "Practical", has little correlation with "Allure" and "Economical". From exhibit 3, we find Segment 2 are customers labeled as upwardly mobile family, having higher percent of experience of  marriage, renting movies and going fishing, which means they care more about the feelings and practical aspects of cars. So , they have higher correlation with "Practical".
+b. Segement 3 is relatively highly related with both "Economical" and "Allure",but has slightly correlation with "Practical".From exhibit 3, we find they are customers labeled as "American Dreamers". They have relatively lower household income which means they care "Economical" of cars. Also, since they have a relatively higher percent of "Reading Entertainment Magzines", they may care the classical and attractive aspects of cars. 
+c. Segment 1 is highly related with "Allure", followed by "Practical" and then "Economical".
+From exhibit 3, we find Segment 1 are customers labeled as "Western,Yuppie, Singles". They like reading business magazine and have graduate education, meaning they care about the classical and attractivenee of the cars which could represent their social status. Also, since they have a higher percent of "sail,scuba dive or ski", they also care about the practical aspect of the cars. 
+
+```{r}
+# 6. 
+#Summary, economical/ but lower on practical and allure-- segment 3 
+```
+
+a. 
+For InfiniteG20, it performs best in the combination of "Allure" factor and "Practical" factor. It does not have a very good score of "Economical", but it performs better than it competitor -BMW318i. So, it targetted customers should care about "allure" and "practical".Also, those customers who have a preference for "allure" but want to be "economical" are also their potential targetted customers. 
+For segment1, they are highly related with "allure" followed by"practical",meaning they are the most matchable customers for G20. 
+For segment 2, even though they are highly related with "practical" factor, the slight correlation with "allure" will influence the sales of G20, they may not be the most target customer. 
+For segment 3, they care more about "economical" and "allure". Since G20 does not have higher score in economical, but if those customers would like to pay more monely, they are also potential target customers. 
+So, based on analysis above, Segment1 is the most target customers, followed by segment 3 and then segment 2. 
+b. Since customers in segment 1 have hobbies in reading "Businee Magzines" and "Computer Magzines", we could put advertisement in popular business magzines to attract their attention. Also, since customers in segment 1 have hobbies of "Sail, Scuba Dive or Ski", we could cooperate with the holders of these activities to provide long-term coupon or prime in these activities for custoemrs who buy G20. 
+
+
+
+
+
+
+

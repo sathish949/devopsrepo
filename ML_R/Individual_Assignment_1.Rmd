@@ -1,0 +1,256 @@
+---
+title: "Individual Assignment 1"
+author: "Wenwen Liu"
+date: "April 26, 2019"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+```{r, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+```{r}
+# 1. Courtyard by Marriott -Product Positioning 
+#Load the data
+Courtyard=read.csv("Courtyard.csv")
+```
+```{r}
+#1.a  Run a multiple regression model 
+lm_courtyard= lm(Rating ~ Age + Income, data = Courtyard)
+lm_courtyard_result=summary(lm_courtyard)
+lm_courtyard_result
+```
+The estimated regression equation is: Rating=63.5304+0.2501*Age-0.2470*Income
+Answer1: The regression equation does not have good explanatory power because the R-Square is negative and both the coefficient for Age and Income are not significant, meaning that the model is not fit for the data or we should rethink the selection of the independent variables. 
+
+```{r}
+#The scatter plot for Rating against each input variable
+plot(Courtyard$Rating~Courtyard$Age)
+plot(Courtyard$Rating~Courtyard$Income)
+
+```
+
+```{r}
+#The scatter plot for Residuals against each input variable
+plot(y=lm_courtyard_result$residuals, x=Courtyard$Age, pch=22, lwd=0.5, bg="darkviolet", main="Scatter the plot of the residuals",
+     xlab="Courtyard$Age", ylab="Residuals", abline(h=0, lty=2))
+plot(y=lm_courtyard_result$residuals, x=Courtyard$Income, pch=22, lwd=0.5, bg="darkviolet", main="Scatter the plot of the residuals",
+     xlab="Courtyard$Income", ylab="Residuals", abline(h=0, lty=2))
+```
+
+Answer: Based on scatter plots, we could find that there is no linear relationship between Rating and Age. There is negative relationship between Rating and Income but not very significant. 
+Based on the residuals plots, we could find the residual values for age are randomly distributed around 0 , meaning that Age may be a good independent variable in this linear model. 
+However,the residual values for income are systematically negative, positive and negative along x-axis , which means there is no direct linear relationship between income and rating. 
+In this way, we take logarithm of income varible to make a transformation. 
+
+```{r}
+# we need to use dummy variables 
+m=lm(Courtyard$Rating~Courtyard$Age+log(Courtyard$Income))
+summary(m)
+```
+As we can see, the R-Square is still negative, so we may still need to make transformation. By viewing the original data of income, we find they are like segmented data. So, we could transform them into dummy variables and then run the regression model .
+```{r}
+# Code the dummy variables 
+Courtyard$Linc<-ifelse(Courtyard$Income<70,1,0)
+Courtyard$Minc<-ifelse(100>=Courtyard$Income & Courtyard$Income>=70,1,0)
+Courtyard$Hinc<-ifelse(Courtyard$Income>=100,1,0)
+Courtyard$Llvl<-ifelse(Courtyard$Occupation==3,1,0)
+Courtyard$Mlvl<-ifelse(Courtyard$Occupation==2,1,0)
+Courtyard$Hlvl<-ifelse(Courtyard$Occupation==1,1,0)
+```
+```{r}
+# 1.b
+incomelm=lm(Courtyard$Rating~Courtyard$Minc+Courtyard$Hinc)
+summary(incomelm)
+```
+Answer: Rating=45.333+22.667*Minc-9.833*Hinc,R-Square=0.5078.
+Medium income is significantly positive related to Rating, which is inconsistent with the relationship between Rating and Income.
+High income is negatively related to Rating and not significant, which is consistent with the relationship between Rating and Income. 
+Implication: Income does have linear relationship with Rating, the previous plot based on the original data set did not reveal this. Furthermore, high-income customers may not take the gardon position strategy seriously and there is almost no association between high_income customers and strategy positioning. However, medium income customers may care more about the position strategy because their relationship are significant related.
+```{r}
+#1.c 
+occupationlm=lm(Courtyard$Rating~Courtyard$Hlvl+Courtyard$Mlvl)
+summary(occupationlm)
+```
+Rating=42.400-5.543*Hlvl+27.475*Mlvl  R-Square=0.6147
+High-Level managers are significantly positive related with Rating.
+R-Square for occupationlm is higher than that in incomelm,which means managers levels of customer as independent variables could explain ratings better. 
+
+```{r}
+#1.d
+occu_incomelm=lm(Courtyard$Rating~Courtyard$Hlvl+Courtyard$Mlvl+Courtyard$Minc+Courtyard$Hinc)
+summary(occu_incomelm)
+plot(Courtyard$Income,Courtyard$Occupation)
+
+```
+When we put all four dummy variables into the regression, none of the input variable is siginificant. So, there might be  linear relationship betwwen income and occupation, which will influence our result. 
+From the plot, we could find that the income are evenly distributed by three levels of occupation, which means there is obvious relationship between income and manager levels so that we cannot put both of these two independent variables into the model. 
+```{r}
+# 2. Conjoint Study for All-in-one Printers
+# Load the data 
+Printers=read.csv('Printers.csv')
+```
+```{r}
+# Creating '0' coefs. for the baseline levels of the 5 attributes
+base=c(1:4)*0
+names(base)=c("No.Wireless","ppm15","Price149","Xerox")
+# All levels of each attribute and their coefficients
+Wireless_Enabled = c(base[1], Printers[4])
+Speed = c(Printers[6:8], base[2])
+Price = c(base[3],Printers[10:12])
+Brand = c(Printers[14:16], base[4])
+
+```
+```{r}
+#2a. Compute and plot the Part Worths for Price and Brand for the twenty-fifth respondent.
+# Part Worths for Price and for Twenty-fifth respondent. 
+twenty_fifth_Price<- Printers[25,c(9,10,11,12)]
+twenty_fif_pricemean=rowMeans(twenty_fifth_Price)
+twenty_fifth_Price.PW =twenty_fifth_Price - twenty_fif_pricemean
+twenty_fifth_Price.PW
+plot(y =unname(twenty_fifth_Price.PW), x =1:4,  type = "b", xaxt = "n", 
+     col = "darkviolet", pch = 22, bg = "darkviolet", lwd = 2.5,
+     xlab = "Brand", ylab = "Part Worths", col.lab = "darkblue")
+axis(1, at=1:4, labels = names(twenty_fifth_Price.PW))
+abline(h = 0, lty = 2)
+```
+The Part Worths for 25th respondent for Price is 9.5 for Price149, 6.0 for Price199, -5.0 for Price249, -10.5 for Price349
+
+```{r}
+
+## Part Worths for Brand and for Twenty-fifth respondent. 
+twenty_fifth_Brand<- Printers[25,c(13,14,15,16)]
+twenty_fif_brandmean=rowMeans(twenty_fifth_Brand)
+twenty_fifth_Brand.PW =twenty_fifth_Brand - twenty_fif_brandmean
+twenty_fifth_Brand.PW 
+plot(y = unname(twenty_fifth_Brand.PW), x = 1:4, type = "b", xaxt = "n", 
+     col = "darkviolet", pch = 22, bg = "darkviolet", lwd = 2.5,
+     xlab = "Brand", ylab = "Part Worths", col.lab = "darkblue")
+axis(1, at=1:4, labels = names(twenty_fifth_Brand.PW))
+abline(h = 0, lty = 2)
+```
+The Part Worths for 25th respondent for Xerox is 3.5, for HP is 12, for Cannon is -7.5, for Epson is -8.
+```{r}
+# Compute and plot the aggregate Part Worths for Price and Brand. 
+# Aggregate Part Worths for Brand. 
+
+Brand.PW = Printers[13:16] - rowMeans(Printers[13:16])
+Brand.PW = t(apply(Brand.PW, 1, function(x)(x/diff(range(x)))))
+colMeans(Brand.PW)
+# Plotting Mean Brand Part Worths
+plot(y = unname(colMeans(Brand.PW)), x = 1:4, type = "b", xaxt = "n", 
+     col = "darkviolet", pch = 22, bg = "darkviolet", lwd = 2.5,
+     xlab = "Brand", ylab = "Mean Part Worths", col.lab = "darkblue")
+axis(1, at=1:4, labels = names(colMeans(Brand.PW)))
+abline(h = 0, lty = 2)
+```
+The aggregate Parts Worths for Brand for Xerox is 0.1098, for HP is 0.5773, for Cannon is -0.2891, for Epson is -0.3980. 
+```{r}
+# Aggregate Part Worths for Price. 
+Price.PW = Printers[9:12] - rowMeans(Printers[9:12])
+Price.PW = t(apply(Price.PW, 1, function(x)(x/diff(range(x)))))
+colMeans(Price.PW)
+# Plotting the Price Part Worths
+plot(y = unname(colMeans(Price.PW)), x = 1:4, type = "b", xaxt = "n", 
+     col = "darkviolet", pch = 22, bg = "darkviolet", lwd = 2.5,
+     xlab = "Price", ylab = "Mean Part Worths", col.lab = "darkblue")
+axis(1, at=1:4, labels = names(colMeans(Price.PW)))
+abline(h = 0, lty = 2)
+
+```
+The aggregate Parts Worths for Price for Price149 is 0.499, for Price199 is 0.1483, for Price249 is -0.1471, for Price349 is -0.5006. 
+
+```{r}
+# 2b. Compute the relative importance of attributes for all individuals. 
+
+# Relative Importance of attributes in the aggregate level
+# Range values for individual respondents
+aggRange = matrix(nrow = nrow(Printers), ncol = 4)
+aggRange[,1] = t(apply(Printers[3:4], 1, function(x)(diff(range(x)))))
+aggRange[,2] = t(apply(Printers[5:8], 1, function(x)(diff(range(x)))))
+aggRange[,3] = t(apply(Printers[9:12], 1, function(x)(diff(range(x)))))
+aggRange[,4] = t(apply(Printers[13:16], 1, function(x)(diff(range(x)))))
+
+# Relative Importance at the aggregate level
+agg_imp = colMeans(aggRange)/sum(colMeans(aggRange))
+names(agg_imp) = c("Wireless_Enabled", "Speed", "Price", "Brand")
+agg_imp
+```
+The relative importance for Wireless_enabled attribute is 17.15%, for Speed attribute is 24.66%, for Price attribute is 37.68%, for Brand attribute is 20.51%. So we think from aggregate level, the Price is the most important attribute, followed by Speed attribute. 
+```{r}
+# Relative Importance for the twenty-fifth respondent.
+twenty_fifth_Wireless<-Printers[25,c(3,4)]
+twenty_fifth_Speed<-Printers[25,c(5,8)]
+twenty_fifth_Price<- Printers[25,c(9,10,11,12)]
+twenty_fifth_Brand<- Printers[25,c(13,14,15,16)]
+twenty_fifth_Range = c(diff(range(twenty_fifth_Wireless)), diff(range(twenty_fifth_Speed)),
+          diff(range(twenty_fifth_Price)), diff(range(twenty_fifth_Brand)))
+Imp.Printers_twenty_fifth =twenty_fifth_Range/sum(twenty_fifth_Range)
+names(Imp.Printers_twenty_fifth ) = c("Wireless_Enabled", "Speed", "Price", "Brand")
+Imp.Printers_twenty_fifth 
+
+```
+# For the twenty-fifth respondent, "Wireless_Enabled"" is the most important attribute, followed by "Price" and "Brand". "Speed" is the least important attribute
+
+```{R}
+# 2c. Calculate Market Share
+Printers_Coeff=Printers[2:16]
+nprod = 3; #There are 3 products in this market simulation
+Products = matrix(nrow = ncol(Printers_Coeff), ncol = nprod)
+Products[,1] = c(1,1,0,0,0,0,1,0,0,1,0,0,1,0,0)
+Products[,2] = c(1,1,0,0,1,0,0,1,0,0,0,0,0,1,0)
+Products[,3] = c(1,0,1,0,1,0,0,0,0,0,1,0,0,0,1)
+
+# Product Utilities
+Umkt = crossprod(t(Printers_Coeff), Products)
+# Current Market - Share of Preference
+PrefSh.before = t(apply(Umkt[,1:nprod], 1, function(x)(x/sum(x))))
+# Current Market - Market Shares
+MSh.Expect = colMeans(PrefSh.before)
+names(MSh.Expect) = c("Product_1", "Product_2", "Product_3")
+MSh.Expect
+
+```
+The expected market share for Product1 is 44.61%, for Product2 is 37.71%, for Product3 is 17.68%.
+
+```{r}
+# 3. Product Decision for Forte Executive Innes
+Maket_Share=read.csv('Mks.csv',header=FALSE)
+Maket_Share
+#From the table above, We could find Product2 has 17.04% market share, product1 has 16.41% market share while product3 has 14.62% market share when there are individually added into current product. So we thin Forte shoudl introduce Product2, because it is  not only  more competitive than the other two products  but also relatively higher than two of current product. 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,285 @@
+---
+title: "Individual Assignment 3"
+author: "Wenwen Liu"
+date: "May 10, 2019"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Q1. Run Cluster Analysis on the Needs variables data (X1 - X10) to identify the number of distinct segments present in this market.
+connector=read.csv('Connector_pda.csv')
+library(psych)
+needs = data.frame(connector[2:11])
+needs_scale=data.frame(scale(needs))
+# Euclidean distances between observation pairs
+needs_scale.dist = dist(needs_scale)
+needs_scale.hc = hclust(needs_scale.dist, method = "ward.D2")
+plot(needs_scale.hc, col = "darkgreen")
+# approach 1
+rect.hclust(needs_scale.hc, k=4, border = "red")
+# approach 2
+plot(needs_scale.hc$height, 
+     xlab = "Clustering Steps", "ylab" = "Height")
+lines(needs_scale.hc$height)
+
+```
+
+ANSWER 1: 
+a. Yes, we need to standardize the variables. Since the variables in X1-X10 are in different scales, especially between X10 and other variables, the effect of X10 will swamp other variables if we don't standardize them. 
+b. I will choose four clusters. From the cluster dendrogram figure, when we move four clusters to three, we have to combine two clusters that are far away which means that they are quite dissimilar.  
+```{r}
+# Q2.Suppose you are asked to divide the market into FOUR segments based on consumer Needs. How are the segment sizes different for the hierarchical versus the k-means clusters? 
+# Step1: hierarchical clusters 
+# a. Assigning hierarchical segment labels (in arbitrary order) for observations
+connector[ncol(connector)+1] = cutree(needs_scale.hc, k = 4)
+names(connector)[ncol(connector)] = "hc.seg"
+# Average characteristics of hierarchical segments/clusters
+needs.seg.mean = aggregate(.~hc.seg, data=connector, mean)
+hc.needs.seg.mean=needs.seg.mean[1:12]
+hc.needs.seg.mean[13:14] = aggregate(.~hc.seg, data=connector[23:24], length)
+names(hc.needs.seg.mean)[14] = "Seg.size"
+hc.needs.seg.mean[13]=NULL
+hc.needs.seg.mean[2]=hc.needs.seg.mean[13]
+hc.needs.seg.mean[13]=NULL
+names(hc.needs.seg.mean)[2] = "Seg.size"
+hc.needs.seg.mean
+
+
+```
+
+```{r}
+
+# Appending with the Kmeans segment assignments
+needs_scale[ncol(needs_scale)+1] = cutree(needs_scale.hc, k = 4)
+names(needs_scale)[ncol(needs_scale)] = "hc.seg"
+needs_scale.hc.mean = aggregate(.~hc.seg, data=needs_scale, mean)
+needs.kmeans = kmeans(needs_scale[1:10],centers=needs_scale.hc.mean[2:11])
+connector[ncol(connector)+1] = needs.kmeans$cluster
+names(connector)[ncol(connector)] = "kmeans.seg"
+
+```
+```{r}
+# Average characteristics of Kmeans segments
+k.seg.mean = aggregate(.~kmeans.seg, data=connector, mean)
+# Name the kmeans egments and output the results 
+k.needs.seg.mean=k.seg.mean [1:12]
+k.needs.seg.mean[13:14] = aggregate(.~kmeans.seg, data=connector[24:25], length)
+names(k.needs.seg.mean)[14] = "Seg.size"
+k.needs.seg.mean[13]=NULL
+k.needs.seg.mean[2]=k.needs.seg.mean[13]
+k.needs.seg.mean[13]=NULL
+names(k.needs.seg.mean)[2] = "Seg.size"
+# compare K-Means result with Hierarchical result
+k.needs.seg.mean
+```
+```{r}
+hc.needs.seg.mean
+k.needs.seg.mean
+```
+Segment Size Ratio hc vs kmeans
+Segment1: 56:54
+Segment2: 31:34
+Segment3: 17:18
+Segment4: 46:44
+
+Answer:There is no big difference between the segment size of of each segments by these two methods. 
+
+```{r}
+# Report the 25th and 75th percentile values of the Needs variables (X1 - X10) for the entire sample as well as their means within the different segments.
+prctl = t(apply(needs, 2, quantile, probs = c(0.25,0.5,0.75)))
+seg.kmeans.df = data.frame(t(k.needs.seg.mean[3:12]), prctl)
+names(seg.kmeans.df) = c("S1", "S2", "S3","S4","25prctl","mean","75prctl")
+seg.kmeans.df
+
+```
+
+```{r}
+# report the means and proportions of demographic and technology use variables for different segment 
+zprctl = t(apply(connector[12:23], 2, quantile, probs = c(0.25,0.5,0.75)))
+zseg.kmeans.df = data.frame(t(k.seg.mean[13:24]), zprctl)
+names(zseg.kmeans.df) = c("S1", "S2", "S3","S4","25prctl","mean","75prctl")
+zseg.kmeans.df
+```
+```{r}
+```
+
+```{r}
+library(dplyr)
+connector.df=data.frame(connector)
+professional= (aggregate(.~kmeans.seg, data=c(connector.df[20],connector.df[25]),sum))
+professional_filtered=connector.df%>% filter(Z5_5==1)
+professional$Z5_5=(professional$Z5_5/nrow(professional_filtered))*100
+professional
+```
+
+```{r}
+
+#Z5-5
+Professional= (aggregate(.~kmeans.seg, data=c(connector.df[20],connector.df[25]),FUN=length))
+Professional_filtered=connector.df%>% filter(Z5_5==1)
+p_filtered=(aggregate(.~kmeans.seg, data=c(Professional_filtered[20],Professional_filtered[25]),FUN=length))
+professional=(p_filtered$Z5_5/nrow(Professional_filtered))
+professional
+```
+
+
+
+```{r}
+#z5-1 proportions
+library(magrittr) # need to run every time you start R and want to use %>%
+library(dplyr)    # alternative, this also loads %>%
+connector.df=data.frame(connector)
+Construction= (aggregate(.~kmeans.seg, data=c(connector.df[16],connector.df[25]),FUN=length))
+Construction_filtered=connector.df%>% filter(Z5_1==1)
+c_filtered=(aggregate(.~kmeans.seg, data=c(Construction_filtered[16],Construction_filtered[25]),FUN=length))
+
+#Z5-2 emergency
+Emergency= (aggregate(.~kmeans.seg, data=c(connector.df[17],connector.df[25]),FUN=length))
+Emergency_filtered=connector.df%>% filter(Z5_2==1)
+e_filtered=(aggregate(.~kmeans.seg, data=c(Emergency_filtered[17],Emergency_filtered[25]),FUN=length))
+
+#Z5-3
+Sales= (aggregate(.~kmeans.seg, data=c(connector.df[18],connector.df[25]),FUN=length))
+Sales_filtered=connector.df%>% filter(Z5_3==1)
+s_filtered=(aggregate(.~kmeans.seg, data=c(Sales_filtered[18],Sales_filtered[25]),FUN=length))
+
+#Z5-4
+Maintenance= (aggregate(.~kmeans.seg, data=c(connector.df[19],connector.df[25]),FUN=length))
+Maintenance_filtered=connector.df%>% filter(Z5_4==1)
+m_filtered=(aggregate(.~kmeans.seg, data=c(Maintenance_filtered[19],Maintenance_filtered[25]),FUN=length))
+
+#Z5-5
+Professional= (aggregate(.~kmeans.seg, data=c(connector.df[20],connector.df[25]),FUN=length))
+Professional_filtered=connector.df%>% filter(Z5_5==1)
+p_filtered=(aggregate(.~kmeans.seg, data=c(Professional_filtered[20],Professional_filtered[25]),FUN=length))
+
+#Z5-6
+Computer = (aggregate(.~kmeans.seg, data=c(connector.df[21],connector.df[25]),FUN=length))
+Computer_filtered=connector.df%>% filter(Z5_6==1)
+co_filtered=(aggregate(.~kmeans.seg, data=c(Computer_filtered[21],Computer_filtered[25]),FUN=length))
+
+# Z6
+PDA= (aggregate(.~kmeans.seg, data=c(connector.df[22],connector.df[25]),FUN=length))
+PDA_filtered=connector.df%>% filter(Z6==1)
+pd_filtered=(aggregate(.~kmeans.seg, data=c(PDA_filtered[22],PDA_filtered[25]),FUN=length))
+
+# Z7
+Personal_Access= (aggregate(.~kmeans.seg, data=c(connector.df[23],connector.df[25]),FUN=length))
+Personal_Access_filtered=connector.df%>% filter(Z7==1)
+pe_filtered=(aggregate(.~kmeans.seg, data=c(Personal_Access_filtered[23],Personal_Access_filtered[25]),FUN=length))
+
+construction=(c_filtered$Z5_1/nrow(Construction_filtered))
+emergency=(e_filtered$Z5_2/nrow(Emergency_filtered))
+sales=(s_filtered$Z5_3/nrow(Sales_filtered))
+maintenance=(m_filtered$Z5_4/nrow(Maintenance_filtered))
+professional=(p_filtered$Z5_5/nrow(Professional_filtered))
+computer=(co_filtered$Z5_6/nrow(Computer_filtered))
+pda=(pd_filtered$Z6/nrow(PDA_filtered))
+personal_access=(pe_filtered$Z7/nrow(Personal_Access_filtered))
+
+construction
+emergency
+sales
+maintenance
+professional
+computer
+pda
+personal_access
+```
+
+```{r}
+# Q3. Explain why the occupation of consumers may be helpful to discriminate between the different segments (e.g., if a sales person at a BestBuy store knew the occupation of a consumer in the store, s/he may be able to guess that consumer's segment type reasonably well). 
+
+# since each occupation is a nomial variable, we should check if disproportionately more people of a category or type (e.g., frequent coupon users) belong to a particular segment 
+Construction_Mean= (aggregate(.~kmeans.seg, data=c(connector.df[16],connector.df[25]),FUN=mean))
+Emergency_Mean=(aggregate(.~kmeans.seg, data=c(connector.df[17],connector.df[25]),FUN=mean))
+Sales_Mean= (aggregate(.~kmeans.seg, data=c(connector.df[18],connector.df[25]),FUN=mean))
+Maintenance_Mean =aggregate(.~kmeans.seg, data=c(connector.df[19],connector.df[25]),FUN=mean)
+Professional_Mean=aggregate(.~kmeans.seg, data=c(connector.df[20],connector.df[25]),FUN=mean)
+Computer_Mean= aggregate(.~kmeans.seg, data=c(connector.df[21],connector.df[25]),FUN=mean)
+Occupation_Result=c(Construction_Mean,Emergency_Mean,Sales_Mean,Maintenance_Mean,Professional_Mean,Computer_Mean)
+Occupation_Result
+```
+
+ANSWER:
+From the output, we could find the proportion of each occupation among different segments are disproportionately. 
+Segment3 has more customers in this Construction,Emergency and Maintenance, Segment 1 has more customers in Sales,Segment2 has more customers in Computer and Professional.  
+Based on above analysis, we could conclude that the occupation of consumers may be helpful to discriminate between the different segments
+
+
+```{r}
+pairwise.t.test(connector$Z5_1, connector$kmeans.seg,
+                p.adjust.method = "none", pool.sd = FALSE)
+
+pairwise.t.test(connector$Z5_2, connector$kmeans.seg,
+                p.adjust.method = "none", pool.sd = FALSE)
+```
+
+```{r}
+#suggest two more variables which could potentially help to discriminate between the consumer segments.
+#boxplot(connector$Z3 ~ connector$kmeans.seg, ylab = "Income", xlab = "Segment")
+boxplot(connector$Z2 ~ connector$kmeans.seg, ylab = "Education", xlab = "Segment")
+boxplot(connector$Z6 ~ connector$kmeans.seg, ylab = "PDA", xlab = "Segment")
+#boxplot(connector$Z7 ~ connector$kmeans.seg, ylab = "Personal Access To Computer", xlab = "Segment")
+#boxplot(connector$Z4 ~ connector$kmeans.seg, ylab = "Times Spent Away from Office", xlab = "Segment")
+```
+ANSWER:
+I will suggest Z6(whether owning a PDA)  and Z2(eduction levels) as two variables that could help to discriminate between consumer segment. 
+From the pictures above, we could find people with higher education are mainly in segment2 and people who are owning a PDA are also in Segment2.
+  
+```{r}
+pairwise.t.test(connector$Z6, connector$kmeans.seg,
+                p.adjust.method = "none", pool.sd = FALSE)
+
+pairwise.t.test(connector$Z2, connector$kmeans.seg,
+                p.adjust.method = "none", pool.sd = FALSE)
+```
+From t-test, we could found segment 1,2,3 are siginificantly different in education levels, but segment3 and segment4 are not significantly different. 
+Meanwhile, we could find segment 1,2,3 are siginificantly different in variable-whethering having PDA, but segment3 and segment4 are not significantly different. 
+
+```{r}
+# 4. Interpret and profile the consumer segments (i.e., describe each consumer segment in plain English) based on the prominent features of the Needs variables (X1 - X10) and the demographic and technology use variables (Z1 - Z7).
+# Step1: principle component analysis
+connector.pc = prcomp(connector[2:23],scale=T)
+# Scree plot
+plot(connector.pc, type = 'l')
+# Step2: Factor Analysis without any rotation
+connector.fa1 = principal(connector[2:23], nfactors = 4,rotate='varimax'  )
+connector.fa1$loadings
+connector.fa1$communality
+summary(connector.fa1$scores)
+# Step3: Appending data frame with Factor Scores
+connector[26:29] = connector.fa1$scores
+names(connector)[26:29] = c("Factor1", "Factor2","Factor3","Factor4")
+```
+RC1: X1/X6/X9/Z2/Z3/Z4/Z5-4/Z6
+RC2: X2/X3/X5/X10/Z5-1/Z5-2
+RC4: X7/X8/Z1/Z5-5/Z7
+RC3: X4/Z5-3/Z5-6
+Seg1: New Technology Tendency/ With higher education and income/ Accept remote information
+Seg2: Tend to share information/ Paper Reliable 
+Seg3: Pay attention to personal perspective/Time-Sensive
+Seg4: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

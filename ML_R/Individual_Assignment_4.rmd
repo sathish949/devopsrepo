@@ -1,0 +1,287 @@
+---
+title: "Individual Assignment 4"
+author: "Wenwen Liu"
+date: "May 15, 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Q1. Revisiting the Conjoint Study for All-in-one Printers
+Printer=read.csv("Printers_RAI.csv")
+View(Printer)
+```
+
+```{r}
+library(psych)
+Printer.df=data.frame(Printer)
+Printer.ca=Printer.df[2:5]
+# Euclidean distances between observation pairs
+Printer.dist=dist(Printer.ca)
+# Hierarchical clusters using the Ward method
+Printer.hc=hclust(Printer.dist, method = "ward.D2")
+# Plotting the 'Height' measure to check for sudden big jump
+plot(Printer.hc$height, 
+     xlab = "Clustering Steps", "ylab" = "Height")
+lines(Printer.hc$height)
+# Plotting the Dendrogram and viewing the selected number of clusters
+plot(Printer.hc, col = "darkgreen")
+rect.hclust(Printer.hc, k=3, border = "red")
+```
+From the picture, we could divide the respondents into 3 clusters, since the height of disimilarity between clusters had increased a lot from 3 clusters.
+
+
+```{r}
+# Assigning hierarchical segment labels (in arbitrary order) for observations
+Printer.ca[ncol(Printer.ca)+1] = cutree(Printer.hc, k = 3)
+names(Printer.ca)[ncol(Printer.ca)] = "hc.seg"
+#View(Printer.ca)
+# Finding K-means segments
+# Average characteristics of hierarchical segments/clusters
+Printer.hc.mean = aggregate(.~hc.seg, data=Printer.ca, mean)
+Printer.hc.mean
+# data is original dataset/ center is the mean for the cluster results
+Printer.kmeans = kmeans(Printer.ca[1:4], centers = Printer.hc.mean[2:5])
+# Appending Printer.df with the Kmeans segment assignments
+Printer.df[ncol(Printer.df)+1] = Printer.kmeans$cluster
+names(Printer.df)[ncol(Printer.df)] = "kmeans.seg"
+# Average characteristics of Kmeans segments
+View(Printer.df)
+Printer.seg.mean = aggregate(.~kmeans.seg, data=Printer.df[5:6], length)
+Printer.seg.mean 
+names(Printer.seg.mean)[2] = "Seg.size"
+Printer.seg.mean[3:7] =  aggregate(.~kmeans.seg, data=Printer.df[2:6], mean)
+Printer.seg.mean[3] = NULL
+Printer.seg.mean
+# Interpreting Shopping Attitudes of segments
+prctl = t(apply(Printer.df[2:5], 2, quantile, probs = c(0.25,0.75)))
+seg.df = data.frame(t(Printer.seg.mean[3:6]), prctl)
+seg.df 
+names(seg.df) = c("S1", "S2", "S3", "25prctl", "75prctl")
+
+
+```
+
+Respondents in cluster 1 care more about brand, followed by Price and Speed. They care less about Wireles. They may be brand-oriented customers. 
+Respondents in in cluster 2 cares more about Wireless.They don't have abvious preference for other attributes. They may be internet-crazers. 
+Respondents in in cluster 3 cares more about Price and almost don't care other attributes. They may be price-sensitive customers.
+
+```{r}
+#Q2:Revisiting Consumers for the ConneCtor PDA
+PDA=read.csv("PDA_2seg.csv")
+PDA.df=data.frame(PDA)
+#View(PDA)
+```
+
+```{r}
+# Split the data
+library(caret)
+set.seed(4527)
+sample = createDataPartition(PDA.df$Segment, p = 0.7, list = F)
+# Training dataset
+PDA.train = PDA.df[sample,]
+# Testing dataset
+PDA.test = PDA.df[-sample,]
+```
+
+```{r}
+# Set Z5--1 Construction as base. 
+# glm-generalize linear model 
+Fullmod = glm(Segment ~ .-Z5_1-ID, data = PDA.train, family = binomial)
+summary(Fullmod)
+```
+
+```{r}
+# Stepwise model selection
+# Base model for Stepwise selection
+Basemod = glm(Segment ~ 1, data = PDA.train, family = binomial)
+summary(Basemod)
+# Stepwise selection
+# what should the minumum and maximun should try 
+Stepmod = step(Basemod, scope = list(lower="Basemod", upper="Fullmod"),
+                   direction = "both")
+# get the final mode with the lowest AIC
+# Show selected model
+summary(Stepmod)
+```
+```{r}
+exp(-1.0342)
+exp(-1.7037)
+exp(0.4458)
+```
+Segment=0.8430+ (-1.0342)*Z2-1.7037*Z5_3+ 0.4458*Z4
+
+All else equal. when Z2_1 increases by 1 unit, the odds of segment belongs to 1 decreases  by 64.49%. 
+All else equal. when Z5-3 increases by 1 unit, the odds of segment belongs to 1 decreases by 81.8%. 
+All else equal. when z4 increases by 1 unit, the odds of segment belongs to 1 increases by 56.17%. 
+
+```{r}
+##Performance of Stepmod in Training dataset
+# Predicted probabilities of belonging to Class1, P(Y=1)
+train.probC1 = predict(Stepmod, newdata = PDA.train, type = "response")
+# Classifying based on a 0.5 cutoff value for P(Y=1)
+train.Segment.classification = as.numeric(train.probC1 > 0.5)
+# Hit ratio
+mean(train.Segment.classification == PDA.train$Segment)
+#Performance of Stepmod in Testing dataset
+test.probC1 = predict(Stepmod, newdata = PDA.test, type = "response")
+test.Segment.classification = as.numeric(test.probC1 > 0.5)
+mean(test.Segment.classification == PDA.test$Segment)
+
+```
+
+The classification accuracy for training data is 0.8.
+The classification accuracy for testing data is 0.8222.
+
+```{r}
+#  Q3 Identiy Loyal Customers 
+Dermaglow=read.csv('Dermaglow.csv')
+Dermaglow.df=data.frame(Dermaglow)
+#View(Dermaglow.df)
+```
+
+```{r}
+# Split the data
+library(caret)
+set.seed(456)
+sample = createDataPartition(Dermaglow.df$Loyal, p = 0.7, list = F)
+# Training dataset
+Dermaglow.train = Dermaglow.df[sample,]
+# Testing dataset
+Dermaglow.test = Dermaglow.df[-sample,]
+```
+
+```{r}
+# glm-generalize linear model 
+Fullmod = glm(Loyal ~ ., data = Dermaglow.train, family = binomial)
+summary(Fullmod)
+```
+The estimated model with all input variables are:
+Loyal=-8.3912+0.0038*Avg.spent-0.1847*Intervisit.time-0.0340*MIncome+0.1408*RatingOnly the variables Intervisit.time and Rating are significant. 
+```{r}
+##Performance of Stepmod in Training dataset
+# Predicted probabilities of belonging to Class1, P(Y=1)
+full_train.probC1 = predict(Fullmod, newdata = Dermaglow.train, type = "response")
+# Classifying based on a 0.5 cutoff value for P(Y=1)
+full_train.Segment.classification = as.numeric(full_train.probC1 > 0.5)
+# Hit ratio
+mean(full_train.Segment.classification == Dermaglow.train$Loyal)
+```
+
+
+
+```{r}
+#Performance of Stepmod in Testing dataset
+full_test.probC1 = predict(Fullmod, newdata = Dermaglow.test, type = "response")
+full_test.Segment.classification = as.numeric(full_test.probC1 > 0.5)
+mean(full_test.Segment.classification == Dermaglow.test$Loyal)
+```
+
+```{r}
+# b. Stepwise model selection
+# Base model for Stepwise selection
+Basemod = glm(Loyal ~ 1, data = Dermaglow.train, family = binomial)
+summary(Basemod)
+# Stepwise selection
+# what should the minumum and maximun should try 
+Stepmod = step(Basemod, scope = list(lower="Basemod", upper="Fullmod"),
+                   direction = "both")
+# get the final mode with the lowest AIC
+# Show selected model
+summary(Stepmod)
+```
+```{r}
+exp(-8.21473)
+exp(0.13873)
+exp(-0.19235)
+```
+Loyal=-8.21473+0.13873*Rating -0.19235*Intervisit.time
+All else equal. when Rating increases by 1 unit, the odds of a customer being loyal increases  by 14.88%. 
+All else equal. when Intervisit.time increases by 1 unit, the odds of a customer being loyal increases  by 17.5%. 
+```{r}
+#calculate the predicted probability that a customer that spends an average of $50 per visit, visits once in six weeks, has a monthly income of $6,000, and has a 70% satisfaction rating, will be a Loyal customer.
+v=-8.21473+0.13873*70 -0.19235*6
+P=exp(v)/(1+exp(v))
+P
+```
+Based on above conditions, the probability of a customer being loyal is 58.47%.
+```{r}
+#Performance of Stepmod in Training dataset
+# Predicted probabilities of belonging to Class1, P(Y=1)
+step_train.probC1 = predict(Stepmod, newdata = Dermaglow.train, type = "response")
+# Classifying based on a 0.5 cutoff value for P(Y=1)
+step_train.Loyal.classification = as.numeric(step_train.probC1 > 0.5)
+# Hit ratio
+mean(step_train.Loyal.classification == Dermaglow.train$Loyal)
+
+
+#3b: Performance of Stepmod in Testing dataset
+###?? steop mode is the result of training data 
+step_test.probC1 = predict(Stepmod, newdata = Dermaglow.test, type = "response")
+step_test.Loyal.classification = as.numeric(step_test.probC1 > 0.5)
+mean(step_test.Loyal.classification == Dermaglow.test$Loyal)
+```
+The classification accuracy in the Training and Testing samples for the selected model are 68.85% and 72.12% respectively. 
+```{r}
+library(ROCR)
+full_pred.mod = prediction(full_train.probC1, Dermaglow.train$Loyal)
+ROC = performance(full_pred.mod, "tpr", "fpr")
+# plotting the ROC curve
+plot(ROC, colorize = T, lwd = 2) #from left to right, the cutoff is being reduced
+abline(a=0, b=1, lty = 2)
+
+
+step_pred.mod = prediction(step_train.probC1, Dermaglow.train$Loyal)
+ROC = performance(step_pred.mod, "tpr", "fpr")
+# plotting the ROC curve
+plot(ROC, colorize = T, lwd = 2) #from left to right, the cutoff is being reduced
+abline(a=0, b=1, lty = 2)
+```
+
+```{r}
+
+# Area under the respective ROC curves for the two models
+full_AUC.tmp = performance(full_pred.mod, "auc")
+(full_AUC.mod = as.numeric(full_AUC.tmp@y.values))
+step_AUC.tmp = performance(step_pred.mod, "auc")
+(AUC.Altmod = as.numeric(step_AUC.tmp@y.values))
+
+
+```
+The AUC for full_model is 0.738. 
+The AUC for step_model is 0.7363. 
+```{r}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
